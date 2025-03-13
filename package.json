@@ -1,22 +1,43 @@
 {
-  "name": "koishi-plugin-tariff",
-  "description": "简单寝室电费统计",
-  "version": "0.0.1",
+  "name": "@kx501/koishi-plugin-electric-fee",
+  "description": "简单统计宿舍电费",
+  "version": "1.0.1",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
   "files": [
     "lib",
     "dist"
   ],
+  "contributors": [
+    "kx501 <x501@foxmail.com>"
+  ],
+  "homepage": "https://github.com/Kx501/koishi-plugin-electric-fee",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Kx501/koishi-plugin-electric-fee.git"
+  },
   "license": "MIT",
-  "scripts": {},
   "keywords": [
     "chatbot",
     "koishi",
-    "plugin"
+    "plugin",
+    "electric-fee"
   ],
-  "devDependencies": {},
   "peerDependencies": {
     "koishi": "^4.17.11"
+  },
+  "koishi": {
+    "service": {
+      "required": [
+        "database"
+      ],
+      "optional": []
+    },
+    "preview": true,
+    "hidden": true
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
   }
 }
