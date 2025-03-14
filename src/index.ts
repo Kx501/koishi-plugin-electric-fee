@@ -48,25 +48,40 @@ export function apply(ctx: Context, config: Config) {
         '3️⃣ 删除记录：删除交费 1\n' +
         `当前货币单位：${config.currencyUnit}\n` +
         '────────────────\n' +
-        '输入 \\help 功能名 查看详细帮助'
+        '输入 /help 功能名 查看详细帮助'
     })
 
-  // 交费子命令
+  // 交费子命令优化后的代码
   ctx.command('电费')
     .subcommand('交电费 <金额:number>', '记录电费缴纳')
     .alias('缴费')
     .usage(`示例：交电费 200\n（记录${config.currencyUnit}为单位的电费缴纳）`)
     .action(async ({ session }, amount) => {
-      if (!amount || amount <= 0) return '金额需大于0'
+      // 精确校验逻辑
+      if (typeof amount !== 'number' || isNaN(amount)) {
+        return '❌ 请输入有效的数字金额'
+      }
+
+      // 精确到分的最小金额校验
+      const minAmount = 0.01
+      if (amount < minAmount) {
+        return `❌ 金额不能小于最小单位（${minAmount}${config.currencyUnit}）`
+      }
+
+      // 严格两位小数校验
+      const validatedAmount = Math.round(amount * 100) / 100
+      if (Math.abs(amount - validatedAmount) > 1e-6) {
+        return '❌ 金额最多支持两位小数'
+      }
 
       try {
         await ctx.database.create('electric_payment', {
-          amount: Number(amount.toFixed(2)),
+          amount: validatedAmount,  // 存储精确计算后的值
           date: new Date(),
           channelId: session.channelId,
           userId: session.userId
         })
-        return `✅ 成功记录电费 ${amount.toFixed(2)} ${config.currencyUnit}`
+        return `✅ 成功记录电费 ${validatedAmount.toFixed(2)} ${config.currencyUnit}`
       } catch (e) {
         return '📛 记录失败，请联系管理员'
       }
@@ -83,9 +98,9 @@ export function apply(ctx: Context, config: Config) {
           userId: session.userId
         }, { sort: { date: 'asc' } })
 
-        if (!records.length) return '📭 您尚未缴纳过电费'
+        if (!records.length) return '📭 你尚未缴纳过电费'
 
-        let output = `📆 您的缴费记录（${config.currencyUnit}）\n══════════════\n`
+        let output = `📆 你的缴费记录（${config.currencyUnit}）\n══════════════\n`
         records.forEach((record, index) => {
           const date = new Date(record.date)
             .toLocaleString('zh-CN', {
