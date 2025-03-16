@@ -1,7 +1,7 @@
 {
   "name": "@kx501/koishi-plugin-electric-fee",
   "description": "简单统计宿舍电费",
-  "version": "1.0.1",
+  "version": "1.0.3",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
   "files": [

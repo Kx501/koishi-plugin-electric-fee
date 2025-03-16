@@ -126,27 +126,61 @@ export function apply(ctx: Context, config: Config) {
       }
     })
 
-  // 删除子命令
+  // 删除子命令优化（支持批量删除）
   ctx.command('电费')
-    .subcommand('删除交费 <序号:number>', '删除指定记录')
-    .alias('删除缴费')
-    .action(async ({ session }, index) => {
-      if (!index || index <= 0) return '⚠️ 请输入有效序号'
+    .subcommand('.删 <序号:string>', '删除指定记录')
+    .alias('删除')
+    .usage('支持格式：\n' +
+      '▸ 单个删除：电费 删 3\n' +
+      '▸ 批量删除：电费 删 1-5')
+    .action(async ({ session }, input) => {
+      if (!input) return '⚠️ 请输入删除序号或范围'
+
+      // 解析序号范围
+      const parseRange = (str: string) => {
+        const match = str.match(/^(\d+)(?:-(\d+))?$/)
+        if (!match) return null
+        const start = parseInt(match[1])
+        const end = match[2] ? parseInt(match[2]) : start
+        return start <= end ? Array.from({ length: end - start + 1 }, (_, i) => start + i) : null
+      }
+
+      // 获取有效记录
+      const records = await ctx.database.get('electric_payment', {
+        channelId: session.channelId,
+        userId: session.userId
+      }, { sort: { date: 'asc' } })
+
+      if (!records.length) return '📭 当前没有可删除的记录'
+
+      // 处理输入
+      const indexes = parseRange(input)
+      if (!indexes || indexes.some(i => i < 1 || i > records.length)) {
+        return `⚠️ 无效序号范围，当前记录数：${records.length}`
+      }
+
+      // 去重并排序
+      const uniqueIndexes = [...new Set(indexes)].sort((a, b) => a - b)
+
+      // 获取目标ID
+      const targets = uniqueIndexes
+        .map(i => records[i - 1]?.id)
+        .filter(id => id !== undefined)
+
+      if (!targets.length) return '⚠️ 没有找到可删除的记录'
 
       try {
-        const records = await ctx.database.get('electric_payment', {
-          channelId: session.channelId,
-          userId: session.userId
-        }, { sort: { date: 'asc' } })
+        // 执行批量删除
+        await ctx.database.remove('electric_payment', { id: targets })
 
-        if (index > records.length) return '⚠️ 序号超出范围'
-        const target = records[index - 1]
-
-        await ctx.database.remove('electric_payment', { id: target.id })
-        return `🗑️ 已删除记录 ${index}（原金额：${target.amount.toFixed(2)
-          } ${config.currencyUnit}）`
+        return `🗑️ 已删除 ${targets.length} 条记录：\n` +
+          uniqueIndexes.map(i => {
+            const amount = records[i - 1].amount.toFixed(2)
+            return `▸ 序号 ${i}（${amount}）- ${config.currencyUnit}`
+          }).join('\n')
       } catch (e) {
-        return '📛 删除失败，请检查序号'
+        ctx.logger.error('批量删除失败:', e)
+        return '📛 删除操作未完成，请检查输入'
       }
     })
 }
